@@ -5,7 +5,7 @@
 #include <Dhcp.h>
 #include <Ethernet.h>
 #include <EthernetServer.h>
-#include <util.h>
+#include <utility/util.h>
 #include <EthernetClient.h>
 #include <Dns.h>
 #include <string.h>
@@ -17,6 +17,7 @@
 #include <Adafruit_ADS1015.h>
 #include "eenet.h"
 
+//#define USE_ETHERNET
 
 // version 
 char version[] = "0.1 " __DATE__;
@@ -80,9 +81,9 @@ PubSubClient client(server, 1883, callback, ethClient);
 struct publist {
        const char *topic;
        union { 
-	 long d_long;
-         const char * d_charp;
-	 float d_float;
+	        long d_long;
+          const char * d_charp;
+	        float d_float;
        } d, sent;
        unsigned long recent;
        unsigned int mintime;
@@ -133,8 +134,10 @@ void setup(void)
   
   ads.begin();
 
+#ifdef USE_ETHERNET
   // connect to network
   msetup();
+#endif
 }
 
 void vloop(void)
@@ -183,33 +186,53 @@ void update(void )
        switch(pubp->flags & (VINT|VFLOAT|VSTRING)) {
 
        case VINT:
-       	    if (client.publish2(MQTTPREFIX, pubp->topic, pubp->d.d_long)) {
-	       pubp->sent.d_long = pubp->d.d_long;
-    	       pubp->flags &= ~VCHANGED;
-       	       pubp->recent = now;
+#ifdef USE_ETHERNET
+       	  if (client.publish2(MQTTPREFIX, pubp->topic, pubp->d.d_long)) {
+#else
+          {
+              Serial.print(pubp->topic);
+              Serial.print(" i ");
+              Serial.println(pubp->d.d_long);
+#endif
+	            pubp->sent.d_long = pubp->d.d_long;
+    	        pubp->flags &= ~VCHANGED;
+       	      pubp->recent = now;
     	    }
 	    break;
 
       case VFLOAT:
-      	   if (client.publish2(MQTTPREFIX, pubp->topic, pubp->d.d_float)) {
-	      pubp->sent.d_float = pubp->d.d_float;
-    	      pubp->flags &= ~VCHANGED;
+#ifdef USE_ETHERNET
+      	 if (client.publish2(MQTTPREFIX, pubp->topic, pubp->d.d_float)) {
+#else
+          {
+              Serial.print(pubp->topic);
+              Serial.print(" f ");
+              Serial.println(pubp->d.d_float);
+#endif
+	            pubp->sent.d_float = pubp->d.d_float;
+    	        pubp->flags &= ~VCHANGED;
        	      pubp->recent = now;
     	   }
-	   break;
+	       break;
 
       case VSTRING:
-      	   if (client.publish2(MQTTPREFIX, pubp->topic, pubp->d.d_charp)) {
-	      pubp->sent.d_charp = pubp->d.d_charp;
-    	      pubp->flags &= ~VCHANGED;
+#ifdef USE_ETHERNET
+      	 if (client.publish2(MQTTPREFIX, pubp->topic, pubp->d.d_charp)) {
+#else
+          {
+              Serial.print(pubp->topic);
+              Serial.print(" s ");
+              Serial.println(pubp->d.d_charp);
+#endif
+	            pubp->sent.d_charp = pubp->d.d_charp;
+    	        pubp->flags &= ~VCHANGED;
        	      pubp->recent = now;
     	   }
-	   break;
+	       break;
 
       default:
-	  pubp->flags &= ~VCHANGED;
+	        pubp->flags &= ~VCHANGED;
        	  pubp->recent = now;
-	  break;
       }
     }
   }
@@ -230,8 +253,10 @@ void loop()
     looptime = millis() - loopref;
   }
   loopref = millis();
-  
+
+#ifdef USE_ETHERNET
   mloop();
+#endif
   vloop();
   update();
 
